@@ -39,18 +39,14 @@ class Button {
 class Timer {
   constructor(timePause) {
     this.timePause = timePause;
-    this.timerId = null;
   }
 
-  startTimer(callback) {
-    this.timerId = setTimeout(callback, this.timePause);
-  }
-
-  stopTimer() {
-    if (this.timerId) {
-      clearTimeout(this.timerId);
-      this.timerId = null; 
-    }
+  startTimer() {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve();
+      }, this.timePause);
+    });
   }
 }
 
@@ -107,13 +103,14 @@ class GameController {
       document.body.appendChild(gameBody);
     }
 
-    startGame(numberOfButtons) {
+    async startGame(numberOfButtons) {
         const gameBody = document.getElementById('game-body');
         gameBody.innerHTML = '';
-        this.initializeButtons(numberOfButtons);  
-        this.initializeMemorizeStage(() => {
-          this.scrambleButtons(numberOfButtons); // Adjust number of times to scramble
-        });
+        this.initializeButtons(numberOfButtons);
+        await this.timer.startTimer();
+        await this.scrambleButtons(numberOfButtons);
+        this.hideBtns();
+        this.initializeClickStage();
     }
 
     initializeButtons(numberOfButtons) {
@@ -127,49 +124,42 @@ class GameController {
       }
     }
 
-    initializeMemorizeStage(callback) {
-      this.timer.startTimer(() => {
-        this.hideBtns();
-        this.timer.stopTimer();
-        
-        if (callback) {
-          callback();
-        }
-      });
-    }
 
     scrambleButtons(numberOfTimes) {
-      let scrambleCount = 0;
-
-      const header = document.getElementById('game-header');
-      const headerRect = header.getBoundingClientRect();
-  
-      // Get the window's dimensions
-      const windowWidth = window.innerWidth;
-      const windowHeight = window.innerHeight;
-  
-      const yStartMargin = headerRect.bottom + 10
-  
-      const maxX = windowWidth - 200
-      const maxY = windowHeight - yStartMargin - 200
-  
-      const intervalId = setInterval(() => {
+      return new Promise((resolve) => {
+        let scrambleCount = 0;
+    
+        const header = document.getElementById('game-header');
+        const headerRect = header.getBoundingClientRect();
+        
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
+    
+        const yStartMargin = headerRect.bottom + 10;
+    
+        const maxX = windowWidth - 200;
+        const maxY = windowHeight - yStartMargin - 200;
+    
+        const intervalId = setInterval(() => {
           if (scrambleCount >= numberOfTimes) {
-              clearInterval(intervalId);
-              this.initializeClickStage();
-              return;
+            clearInterval(intervalId);
+            resolve();
+            return;
           }
-          this.buttons.forEach(button => {
-              const randomX = Math.random() * maxX
-              const randomY = Math.random() * maxY + yStartMargin
-              button.element.style.position = 'absolute'; 
-              button.element.style.left = `${randomX}px`;
-              button.element.style.top = `${randomY}px`; 
+    
+          this.buttons.forEach((button) => {
+            const randomX = Math.random() * maxX;
+            const randomY = Math.random() * maxY + yStartMargin;
+            button.element.style.position = 'absolute';
+            button.element.style.left = `${randomX}px`;
+            button.element.style.top = `${randomY}px`;
           });
-  
+    
           scrambleCount++;
-      }, this.scrambleInterval * 1000);
-  }
+        }, this.scrambleInterval * 1000);
+      });
+    }
+    
   
     initializeClickStage() {
       this.buttons.forEach(button => {
